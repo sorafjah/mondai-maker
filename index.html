@@ -1,227 +1,378 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Printer, FileText, CheckCircle, Info, Layers } from 'lucide-react';
-
-export default function App() {
-  const [title, setTitle] = useState("学習プリント");
-  const [questions, setQuestions] = useState([
-    { 
-      id: 1, 
-      type: "fourChoice",
-      text: "[青森県](あおもりけん)でたくさん作られている[果物](くだもの)はどれかな？", 
-      options: ["みかん", "りんご", "ぶどう", "もも"],
-      answer: "りんご" 
-    },
-    { 
-      id: 2, 
-      type: "descriptive",
-      text: "８ ＋ ５ の[計算](けいさん)をしよう。", 
-      answer: "13" 
-    },
-    { 
-      id: 3, 
-      type: "twoChoice",
-      text: "[太陽](たいよう)がのぼる[方角](ほうがく)はどっちかな？", 
-      options: ["東", "西"],
-      answer: "東" 
-    }
-  ]);
-
-  const renderTextWithRuby = (text) => {
-    if (!text) return "";
-    const regex = /\[(.*?)\]\((.*?)\)/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      if (match.index > lastIndex) parts.push(text.substring(lastIndex, match.index));
-      parts.push(<ruby key={match.index}>{match[1]}<rt>{match[2]}</rt></ruby>);
-      lastIndex = regex.lastIndex;
-    }
-    if (lastIndex < text.length) parts.push(text.substring(lastIndex));
-    return parts;
-  };
-
-  const addQuestion = () => {
-    const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
-    setQuestions([...questions, { 
-      id: newId, 
-      type: "descriptive", 
-      text: "", 
-      options: ["", "", "", ""], 
-      answer: "" 
-    }]);
-  };
-
-  const updateQuestion = (id, field, value) => {
-    setQuestions(questions.map(q => q.id === id ? { ...q, [field]: value } : q));
-  };
-
-  const updateOption = (qId, optIndex, value) => {
-    setQuestions(questions.map(q => {
-      if (q.id === qId) {
-        const newOptions = [...(q.options || ["", "", "", ""])];
-        newOptions[optIndex] = value;
-        return { ...q, options: newOptions };
-      }
-      return q;
-    }));
-  };
-
-  const removeQuestion = (id) => {
-    setQuestions(questions.filter(q => q.id !== id));
-  };
-
-  return (
-    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&display=swap');
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>プリントメーカー</title>
+    <!-- Tailwind CSS の読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- BIZ UDPGothic フォントの読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&display=swap" rel="stylesheet">
+    
+    <style>
+        /* 印刷用のスタイル */
         @media print {
-          @page { size: A4; margin: 15mm 20mm; }
-          .no-print { display: none !important; }
-          .print-area { width: 100% !important; background: white !important; overflow: visible !important; }
-          .a4-sheet { box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 100vh !important; page-break-after: always; }
+            @page { size: A4; margin: 15mm 20mm; }
+            body { background-color: white !important; }
+            .no-print { display: none !important; }
+            .print-area { 
+                width: 100% !important; 
+                height: auto !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                background: transparent !important; 
+                overflow: visible !important;
+            }
+            .a4-sheet { 
+                box-shadow: none !important; 
+                margin: 0 !important; 
+                padding: 0 !important;
+                width: 100% !important; 
+                min-height: 100vh !important; 
+                page-break-after: always; 
+            }
+            .a4-sheet:last-child { page-break-after: auto; }
         }
+        
+        /* 基本スタイル */
         .biz-font { font-family: 'BIZ UDPGothic', sans-serif; }
-        .a4-sheet { width: 210mm; min-height: 297mm; background: white; margin: 20px auto; padding: 15mm 20mm; box-sizing: border-box; color: #333; }
+        
+        .a4-sheet {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            margin: 20px auto;
+            padding: 15mm 20mm;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            box-sizing: border-box;
+            color: #333;
+        }
+        
+        /* ルビ（ふりがな）のスタイル */
         ruby { ruby-align: center; }
         rt { font-size: 0.45em; color: #666; }
-        .underline-input { border-bottom: 1px solid #333; min-width: 150px; display: inline-block; height: 1.5em; vertical-align: bottom; }
-      `}</style>
+        .answer-key-sheet rt { color: #d32f2f; }
 
-      {/* エディター */}
-      <div className="w-2/5 min-w-[400px] bg-white border-r border-gray-200 flex flex-col no-print shadow-xl z-10">
-        <div className="p-5 border-b bg-sky-100 text-gray-800 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-bold flex items-center gap-2"><FileText size={24} />プリントメーカー</h1>
-          </div>
-          <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm text-white font-bold flex items-center gap-2 transition-colors">
-            <Printer size={18} /> 印刷
-          </button>
+        /* 解答欄の下線 */
+        .underline-input { 
+            border-bottom: 1px solid #333; 
+            min-width: 150px; 
+            display: inline-block; 
+            height: 1.5em; 
+            vertical-align: bottom; 
+        }
+
+        /* スクロールバーのカスタマイズ（エディター用） */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="flex h-screen bg-gray-100 font-sans overflow-hidden">
+
+    <!-- 左側：エディター -->
+    <div class="w-2/5 min-w-[400px] bg-white border-r border-gray-200 flex flex-col no-print shadow-xl z-10">
+        <!-- ヘッダー -->
+        <div class="p-5 border-b bg-sky-100 text-gray-800 flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                プリントメーカー
+            </h1>
+            <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm text-white font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                印刷
+            </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">タイトル</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-6">
+            <!-- タイトル入力 -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">タイトル</label>
+                <input type="text" id="title-input" oninput="updateTitle(this.value)" class="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-sky-400" />
+            </div>
 
-          <div className="space-y-4">
-            <h2 className="font-bold text-gray-800 flex items-center gap-2"><Layers size={18}/> 問題編集</h2>
-            {questions.map((q, index) => (
-              <div key={q.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative group">
-                <button onClick={() => removeQuestion(q.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
-                
-                <div className="flex gap-2 mb-3">
-                  <span className="bg-sky-200 text-sky-900 font-bold text-xs px-2 py-1 rounded flex items-center">第{index + 1}問</span>
-                  <select 
-                    value={q.type} 
-                    onChange={(e) => updateQuestion(q.id, 'type', e.target.value)}
-                    className="text-xs border rounded p-1 outline-none"
-                  >
-                    <option value="descriptive">記述式</option>
-                    <option value="twoChoice">2択</option>
-                    <option value="fourChoice">4択</option>
-                  </select>
+            <!-- ふりがなヒント -->
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800">
+                <p>ふりがな： <code class="bg-white px-1 py-0.5 rounded text-blue-600 font-mono">[漢字](かんじ)</code> でルビが振れます。</p>
+            </div>
+
+            <!-- 問題リスト -->
+            <div class="space-y-4">
+                <h2 class="font-bold text-gray-800 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                    問題編集
+                </h2>
+                <div id="questions-container" class="space-y-4">
+                    <!-- JavaScriptで問題がここに描画されます -->
                 </div>
 
-                <textarea 
-                  value={q.text} 
-                  onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
-                  className="w-full p-2 border rounded text-sm mb-2 h-16 outline-none"
-                  placeholder="問題文... [漢字](かんじ) でルビ"
-                />
-
-                {(q.type === 'twoChoice' || q.type === 'fourChoice') && (
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    {(q.type === 'twoChoice' ? [0, 1] : [0, 1, 2, 3]).map(i => (
-                      <input 
-                        key={i}
-                        type="text"
-                        value={q.options?.[i] || ""}
-                        onChange={(e) => updateOption(q.id, i, e.target.value)}
-                        className="p-1 border rounded text-xs"
-                        placeholder={`選択肢 ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <input 
-                  type="text" 
-                  value={q.answer} 
-                  onChange={(e) => updateQuestion(q.id, 'answer', e.target.value)}
-                  className="w-full p-2 border rounded text-sm bg-green-50 outline-none"
-                  placeholder="正解を入力..."
-                />
-              </div>
-            ))}
-          </div>
-
-          <button onClick={addQuestion} className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 font-bold">
-            <Plus size={20} /> 問題を追加
-          </button>
+                <button onclick="addQuestion()" class="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 hover:text-gray-700 flex items-center justify-center gap-2 font-bold transition-colors cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    問題を追加
+                </button>
+            </div>
         </div>
-      </div>
-
-      {/* プレビュー表示 */}
-      <div className="flex-1 bg-gray-400 overflow-y-auto print-area p-8">
-        {/* 問題用紙 */}
-        <div className="a4-sheet biz-font shadow-2xl mb-8">
-          <div className="flex justify-between items-end pb-2 mb-8">
-            <h1 className="text-2xl font-bold">{renderTextWithRuby(title)}</h1>
-            <div className="text-lg">名前 <span className="inline-block w-48 border-b border-black ml-2"></span></div>
-          </div>
-
-          <div className="space-y-10">
-            {questions.map((q, index) => (
-              <div key={q.id} className="text-[18px] leading-relaxed">
-                <div className="mb-3">
-                  <span className="font-bold mr-2">{index + 1}.</span>
-                  {renderTextWithRuby(q.text)}
-                </div>
-
-                {/* 選択肢表示 */}
-                {(q.type === 'twoChoice' || q.type === 'fourChoice') && (
-                  <div className="ml-6 grid grid-cols-2 gap-y-2 mb-3">
-                    {(q.type === 'twoChoice' ? q.options?.slice(0, 2) : q.options)?.map((opt, i) => (
-                      <div key={i} className="flex items-center gap-2 text-[16px]">
-                        <span className="font-bold">{String.fromCharCode(65 + i)}:</span>
-                        {renderTextWithRuby(opt)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 下線解答欄 */}
-                <div className="flex justify-end items-center gap-2">
-                  <div className="underline-input w-40"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 解答用紙（2ページ目） */}
-        <div className="a4-sheet biz-font shadow-2xl">
-          <div className="pb-2 mb-8">
-            <h1 className="text-2xl font-bold">【解答】{renderTextWithRuby(title)}</h1>
-          </div>
-          <div className="space-y-10">
-            {questions.map((q, index) => (
-              <div key={`ans-${q.id}`} className="text-[18px] leading-relaxed">
-                <div className="mb-2"><span className="font-bold mr-2">{index + 1}.</span>{renderTextWithRuby(q.text)}</div>
-                <div className="flex justify-end items-center gap-2">
-                  <div className="border-b border-red-500 text-red-600 font-bold px-4 min-w-[160px] text-center">
-                    {renderTextWithRuby(q.answer)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
-  );
-}
 
+    <!-- 右側：プレビュー -->
+    <div class="flex-1 bg-gray-400 overflow-y-auto print-area p-8" id="preview-container">
+        <!-- 1ページ目：問題用紙 -->
+        <div class="a4-sheet biz-font shadow-2xl mb-8" id="print-page-1"></div>
+
+        <!-- 2ページ目：解答用紙 -->
+        <div class="a4-sheet biz-font shadow-2xl answer-key-sheet" id="print-page-2"></div>
+    </div>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        // アプリケーションの状態（State）
+        let state = {
+            title: "学習プリント",
+            questions: [
+                { 
+                    id: 1, 
+                    type: "fourChoice",
+                    text: "[青森県](あおもりけん)でたくさん作られている[果物](くだもの)はどれかな？", 
+                    options: ["みかん", "りんご", "ぶどう", "もも"],
+                    answer: "りんご" 
+                },
+                { 
+                    id: 2, 
+                    type: "descriptive",
+                    text: "８ ＋ ５ の[計算](けいさん)をしよう。", 
+                    options: ["", "", "", ""],
+                    answer: "13" 
+                },
+                { 
+                    id: 3, 
+                    type: "twoChoice",
+                    text: "[太陽](たいよう)がのぼる[方角](ほうがく)はどっちかな？", 
+                    options: ["東", "西", "", ""],
+                    answer: "東" 
+                }
+            ]
+        };
+
+        // --- ユーティリティ関数 ---
+
+        // HTMLエスケープ（XSS対策と表示崩れ防止）
+        function escapeHtml(text) {
+            if (!text) return "";
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // ふりがな（ルビ）変換
+        function renderTextWithRuby(text) {
+            if (!text) return "";
+            let escaped = escapeHtml(text);
+            const regex = /\[(.*?)\]\((.*?)\)/g;
+            return escaped.replace(regex, '<ruby>$1<rt>$2</rt></ruby>');
+        }
+
+        // --- イベントハンドラ（状態の更新） ---
+
+        function updateTitle(value) {
+            state.title = value;
+            renderPreview();
+        }
+
+        function updateQuestionText(id, value) {
+            const q = state.questions.find(q => q.id === id);
+            if (q) q.text = value;
+            renderPreview();
+        }
+
+        function updateQuestionAnswer(id, value) {
+            const q = state.questions.find(q => q.id === id);
+            if (q) q.answer = value;
+            renderPreview();
+        }
+
+        function updateQuestionType(id, value) {
+            const q = state.questions.find(q => q.id === id);
+            if (q) q.type = value;
+            // 形式が変わると選択肢の入力欄UIが変わるため、エディター全体を再描画
+            renderEditor(); 
+            renderPreview();
+        }
+
+        function updateOption(id, index, value) {
+            const q = state.questions.find(q => q.id === id);
+            if (q && q.options) q.options[index] = value;
+            renderPreview();
+        }
+
+        function addQuestion() {
+            const newId = state.questions.length > 0 ? Math.max(...state.questions.map(q => q.id)) + 1 : 1;
+            state.questions.push({ 
+                id: newId, 
+                type: "descriptive", 
+                text: "", 
+                options: ["", "", "", ""], 
+                answer: "" 
+            });
+            renderEditor();
+            renderPreview();
+        }
+
+        function removeQuestion(id) {
+            state.questions = state.questions.filter(q => q.id !== id);
+            renderEditor();
+            renderPreview();
+        }
+
+
+        // --- 描画ロジック ---
+
+        // 左側：エディターの描画
+        // ※ 入力中のフォーカス消失を防ぐため、テキスト入力時は呼ばず、問題の追加・削除・タイプ変更時のみ呼ぶ
+        function renderEditor() {
+            document.getElementById('title-input').value = state.title;
+            const container = document.getElementById('questions-container');
+            let html = '';
+
+            state.questions.forEach((q, index) => {
+                html += `
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 relative group shadow-sm">
+                    <button onclick="removeQuestion(${q.id})" class="absolute top-2 right-2 text-red-400 hover:text-red-600 bg-red-50 p-1 rounded cursor-pointer" title="削除">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    </button>
+                    
+                    <div class="flex gap-2 mb-3">
+                        <span class="bg-sky-200 text-sky-900 font-bold text-xs px-2 py-1 rounded flex items-center">第${index + 1}問</span>
+                        <select onchange="updateQuestionType(${q.id}, this.value)" class="text-xs border border-gray-300 rounded p-1 outline-none bg-white focus:ring-1 focus:ring-sky-400">
+                            <option value="descriptive" ${q.type === 'descriptive' ? 'selected' : ''}>記述式</option>
+                            <option value="twoChoice" ${q.type === 'twoChoice' ? 'selected' : ''}>2択</option>
+                            <option value="fourChoice" ${q.type === 'fourChoice' ? 'selected' : ''}>4択</option>
+                        </select>
+                    </div>
+
+                    <textarea oninput="updateQuestionText(${q.id}, this.value)" class="w-full p-2 border border-gray-300 rounded text-sm mb-2 h-16 outline-none focus:ring-2 focus:ring-sky-400 resize-y" placeholder="問題文... [漢字](かんじ) でルビ">${escapeHtml(q.text)}</textarea>
+                `;
+
+                // 選択肢の描画（2択・4択の場合）
+                if (q.type === 'twoChoice' || q.type === 'fourChoice') {
+                    html += `<div class="grid grid-cols-2 gap-2 mb-2">`;
+                    const limit = q.type === 'twoChoice' ? 2 : 4;
+                    for (let i = 0; i < limit; i++) {
+                        const optVal = q.options ? (q.options[i] || '') : '';
+                        html += `
+                            <div class="flex items-center">
+                                <span class="text-xs font-bold text-gray-500 mr-1 w-4">${String.fromCharCode(65 + i)}</span>
+                                <input type="text" oninput="updateOption(${q.id}, ${i}, this.value)" value="${escapeHtml(optVal)}" class="w-full p-1 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-sky-400" placeholder="選択肢" />
+                            </div>
+                        `;
+                    }
+                    html += `</div>`;
+                }
+
+                html += `
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs font-bold text-red-500 whitespace-nowrap">正解</span>
+                        <input type="text" oninput="updateQuestionAnswer(${q.id}, this.value)" value="${escapeHtml(q.answer)}" class="w-full p-2 border border-red-200 rounded text-sm bg-red-50 outline-none focus:ring-2 focus:ring-red-400" placeholder="正解を入力..." />
+                    </div>
+                </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 右側：プレビュー（A4用紙）の描画
+        function renderPreview() {
+            const page1 = document.getElementById('print-page-1');
+            const page2 = document.getElementById('print-page-2');
+            const titleHtml = renderTextWithRuby(state.title);
+
+            // ---------------------
+            // 問題用紙の生成
+            // ---------------------
+            let qHtml = `
+                <div class="flex justify-between items-end pb-2 mb-8 mt-4">
+                    <h1 class="text-2xl font-bold tracking-wide">${titleHtml}</h1>
+                    <div class="text-lg">名前 <span class="inline-block w-48 border-b border-black ml-2"></span></div>
+                </div>
+                <div class="space-y-10">
+            `;
+
+            state.questions.forEach((q, index) => {
+                qHtml += `
+                <div class="text-[18px] leading-relaxed">
+                    <div class="mb-3">
+                        <span class="font-bold mr-2">${index + 1}.</span>
+                        ${renderTextWithRuby(q.text)}
+                    </div>
+                `;
+
+                // 選択肢の表示
+                if (q.type === 'twoChoice' || q.type === 'fourChoice') {
+                    qHtml += `<div class="ml-6 grid grid-cols-2 gap-y-3 mb-3">`;
+                    const limit = q.type === 'twoChoice' ? 2 : 4;
+                    for (let i = 0; i < limit; i++) {
+                        const optVal = q.options ? (q.options[i] || '') : '';
+                        qHtml += `
+                            <div class="flex items-start gap-2 text-[16px]">
+                                <span class="font-bold shrink-0 mt-[2px]">${String.fromCharCode(65 + i)}:</span>
+                                <span>${renderTextWithRuby(optVal)}</span>
+                            </div>
+                        `;
+                    }
+                    qHtml += `</div>`;
+                }
+
+                // 解答欄（下線）
+                qHtml += `
+                    <div class="flex justify-end items-center gap-2 mt-4">
+                        <div class="underline-input w-40"></div>
+                    </div>
+                </div>`;
+            });
+            qHtml += `</div>`;
+            page1.innerHTML = qHtml;
+
+            // ---------------------
+            // 解答用紙の生成
+            // ---------------------
+            let aHtml = `
+                <div class="pb-2 mb-8 mt-4">
+                    <h1 class="text-2xl font-bold tracking-wide text-gray-800">【解答】${titleHtml}</h1>
+                </div>
+                <div class="space-y-10">
+            `;
+
+            state.questions.forEach((q, index) => {
+                aHtml += `
+                <div class="text-[18px] leading-relaxed">
+                    <div class="mb-2">
+                        <span class="font-bold mr-2">${index + 1}.</span>
+                        ${renderTextWithRuby(q.text)}
+                    </div>
+                    <div class="flex justify-end items-center gap-2 mt-2">
+                      <div class="border-b border-red-500 text-red-600 font-bold px-4 min-w-[160px] text-center tracking-widest">
+                        ${renderTextWithRuby(q.answer)}
+                      </div>
+                    </div>
+                </div>`;
+            });
+            aHtml += `</div>`;
+            page2.innerHTML = aHtml;
+        }
+
+        // 初期化：ページ読み込み時に描画を実行
+        window.onload = () => {
+            renderEditor();
+            renderPreview();
+        };
+
+    </script>
+</body>
+</html>
 
