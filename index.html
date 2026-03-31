@@ -1,0 +1,227 @@
+import React, { useState } from 'react';
+import { Plus, Trash2, Printer, FileText, CheckCircle, Info, Layers } from 'lucide-react';
+
+export default function App() {
+  const [title, setTitle] = useState("学習プリント");
+  const [questions, setQuestions] = useState([
+    { 
+      id: 1, 
+      type: "fourChoice",
+      text: "[青森県](あおもりけん)でたくさん作られている[果物](くだもの)はどれかな？", 
+      options: ["みかん", "りんご", "ぶどう", "もも"],
+      answer: "りんご" 
+    },
+    { 
+      id: 2, 
+      type: "descriptive",
+      text: "８ ＋ ５ の[計算](けいさん)をしよう。", 
+      answer: "13" 
+    },
+    { 
+      id: 3, 
+      type: "twoChoice",
+      text: "[太陽](たいよう)がのぼる[方角](ほうがく)はどっちかな？", 
+      options: ["東", "西"],
+      answer: "東" 
+    }
+  ]);
+
+  const renderTextWithRuby = (text) => {
+    if (!text) return "";
+    const regex = /\[(.*?)\]\((.*?)\)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) parts.push(text.substring(lastIndex, match.index));
+      parts.push(<ruby key={match.index}>{match[1]}<rt>{match[2]}</rt></ruby>);
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < text.length) parts.push(text.substring(lastIndex));
+    return parts;
+  };
+
+  const addQuestion = () => {
+    const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
+    setQuestions([...questions, { 
+      id: newId, 
+      type: "descriptive", 
+      text: "", 
+      options: ["", "", "", ""], 
+      answer: "" 
+    }]);
+  };
+
+  const updateQuestion = (id, field, value) => {
+    setQuestions(questions.map(q => q.id === id ? { ...q, [field]: value } : q));
+  };
+
+  const updateOption = (qId, optIndex, value) => {
+    setQuestions(questions.map(q => {
+      if (q.id === qId) {
+        const newOptions = [...(q.options || ["", "", "", ""])];
+        newOptions[optIndex] = value;
+        return { ...q, options: newOptions };
+      }
+      return q;
+    }));
+  };
+
+  const removeQuestion = (id) => {
+    setQuestions(questions.filter(q => q.id !== id));
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&display=swap');
+        @media print {
+          @page { size: A4; margin: 15mm 20mm; }
+          .no-print { display: none !important; }
+          .print-area { width: 100% !important; background: white !important; overflow: visible !important; }
+          .a4-sheet { box-shadow: none !important; margin: 0 !important; width: 100% !important; min-height: 100vh !important; page-break-after: always; }
+        }
+        .biz-font { font-family: 'BIZ UDPGothic', sans-serif; }
+        .a4-sheet { width: 210mm; min-height: 297mm; background: white; margin: 20px auto; padding: 15mm 20mm; box-sizing: border-box; color: #333; }
+        ruby { ruby-align: center; }
+        rt { font-size: 0.45em; color: #666; }
+        .underline-input { border-bottom: 1px solid #333; min-width: 150px; display: inline-block; height: 1.5em; vertical-align: bottom; }
+      `}</style>
+
+      {/* エディター */}
+      <div className="w-2/5 min-w-[400px] bg-white border-r border-gray-200 flex flex-col no-print shadow-xl z-10">
+        <div className="p-5 border-b bg-sky-100 text-gray-800 flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2"><FileText size={24} />プリントメーカー</h1>
+          </div>
+          <button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm text-white font-bold flex items-center gap-2 transition-colors">
+            <Printer size={18} /> 印刷
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">タイトル</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-2 border rounded outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="font-bold text-gray-800 flex items-center gap-2"><Layers size={18}/> 問題編集</h2>
+            {questions.map((q, index) => (
+              <div key={q.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative group">
+                <button onClick={() => removeQuestion(q.id)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
+                
+                <div className="flex gap-2 mb-3">
+                  <span className="bg-sky-200 text-sky-900 font-bold text-xs px-2 py-1 rounded flex items-center">第{index + 1}問</span>
+                  <select 
+                    value={q.type} 
+                    onChange={(e) => updateQuestion(q.id, 'type', e.target.value)}
+                    className="text-xs border rounded p-1 outline-none"
+                  >
+                    <option value="descriptive">記述式</option>
+                    <option value="twoChoice">2択</option>
+                    <option value="fourChoice">4択</option>
+                  </select>
+                </div>
+
+                <textarea 
+                  value={q.text} 
+                  onChange={(e) => updateQuestion(q.id, 'text', e.target.value)}
+                  className="w-full p-2 border rounded text-sm mb-2 h-16 outline-none"
+                  placeholder="問題文... [漢字](かんじ) でルビ"
+                />
+
+                {(q.type === 'twoChoice' || q.type === 'fourChoice') && (
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    {(q.type === 'twoChoice' ? [0, 1] : [0, 1, 2, 3]).map(i => (
+                      <input 
+                        key={i}
+                        type="text"
+                        value={q.options?.[i] || ""}
+                        onChange={(e) => updateOption(q.id, i, e.target.value)}
+                        className="p-1 border rounded text-xs"
+                        placeholder={`選択肢 ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <input 
+                  type="text" 
+                  value={q.answer} 
+                  onChange={(e) => updateQuestion(q.id, 'answer', e.target.value)}
+                  className="w-full p-2 border rounded text-sm bg-green-50 outline-none"
+                  placeholder="正解を入力..."
+                />
+              </div>
+            ))}
+          </div>
+
+          <button onClick={addQuestion} className="w-full py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-2 font-bold">
+            <Plus size={20} /> 問題を追加
+          </button>
+        </div>
+      </div>
+
+      {/* プレビュー表示 */}
+      <div className="flex-1 bg-gray-400 overflow-y-auto print-area p-8">
+        {/* 問題用紙 */}
+        <div className="a4-sheet biz-font shadow-2xl mb-8">
+          <div className="flex justify-between items-end pb-2 mb-8">
+            <h1 className="text-2xl font-bold">{renderTextWithRuby(title)}</h1>
+            <div className="text-lg">名前 <span className="inline-block w-48 border-b border-black ml-2"></span></div>
+          </div>
+
+          <div className="space-y-10">
+            {questions.map((q, index) => (
+              <div key={q.id} className="text-[18px] leading-relaxed">
+                <div className="mb-3">
+                  <span className="font-bold mr-2">{index + 1}.</span>
+                  {renderTextWithRuby(q.text)}
+                </div>
+
+                {/* 選択肢表示 */}
+                {(q.type === 'twoChoice' || q.type === 'fourChoice') && (
+                  <div className="ml-6 grid grid-cols-2 gap-y-2 mb-3">
+                    {(q.type === 'twoChoice' ? q.options?.slice(0, 2) : q.options)?.map((opt, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[16px]">
+                        <span className="font-bold">{String.fromCharCode(65 + i)}:</span>
+                        {renderTextWithRuby(opt)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 下線解答欄 */}
+                <div className="flex justify-end items-center gap-2">
+                  <div className="underline-input w-40"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 解答用紙（2ページ目） */}
+        <div className="a4-sheet biz-font shadow-2xl">
+          <div className="pb-2 mb-8">
+            <h1 className="text-2xl font-bold">【解答】{renderTextWithRuby(title)}</h1>
+          </div>
+          <div className="space-y-10">
+            {questions.map((q, index) => (
+              <div key={`ans-${q.id}`} className="text-[18px] leading-relaxed">
+                <div className="mb-2"><span className="font-bold mr-2">{index + 1}.</span>{renderTextWithRuby(q.text)}</div>
+                <div className="flex justify-end items-center gap-2">
+                  <div className="border-b border-red-500 text-red-600 font-bold px-4 min-w-[160px] text-center">
+                    {renderTextWithRuby(q.answer)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
